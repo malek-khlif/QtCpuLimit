@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file alias="main.qml">QML/main.qml</file>
+        <file alias="CustomizationPanel.qml">QML/CustomizationPanel.qml</file>
+        <file alias="ProcessesList.qml">QML/ProcessesList.qml</file>
+    </qresource>
+</RCC>
