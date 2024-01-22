@@ -6,7 +6,7 @@
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
-#include "CpuLimitManager.h"
+#include "QCpuModel.h"
 
 /**
  * @brief main function
@@ -21,14 +21,20 @@ int main(int argc, char** argv)
     //create Qt GUI application
     QGuiApplication app(argc, argv);
 
-    //create CpuLimitManager object
-    qmlRegisterSingletonType<CpuLimitManager>(
-        "CpuLimitManager", 1, 0,
-        "CpuLimitManager",
+    //register meta type
+    qRegisterMetaType<QCpuProcessList>("QCpuProcessList");
+    qRegisterMetaType<PidList>("PidList");
+    qRegisterMetaType<QCpuProcess>("QCpuProcess");
+    qRegisterMetaType<pid_t>("pid_t");
+
+    //create QCpuModel object
+    qmlRegisterSingletonType<QCpuModel>(
+        "QCpuModel", 1, 0,
+        "QCpuModel",
         [](QQmlEngine*, QJSEngine*)
     {
         //owned by the QML engine
-        return new CpuLimitManager;
+        return new QCpuModel;
     });
 
     //create Qt QML engine

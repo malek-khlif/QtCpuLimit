@@ -6,7 +6,7 @@
  
 import QtQuick 2.15
 import QtQuick.Controls 2.15
-import CpuLimitManager 1.0
+import QCpuModel 1.0
 
 ApplicationWindow {
     id: root
@@ -14,8 +14,8 @@ ApplicationWindow {
     title: "Qt CPU Limit"
 
     readonly property int windowMinimumWidth: 800
-    readonly property int windowMinimumHeight: 800
-    readonly property int customizationPanelHeight: 300
+    readonly property int windowMinimumHeight: 600
+    readonly property int customizationPanelHeight: 150
 
     width: root.windowMinimumWidth
     height: root.windowMinimumHeight
@@ -26,6 +26,7 @@ ApplicationWindow {
     CustomizationPanel {
         id: customizationPanel
         anchors.left: parent.left
+        anchors.leftMargin: 10
         anchors.right: parent.right
         anchors.top: parent.top
         height: root.customizationPanelHeight
@@ -41,7 +42,7 @@ ApplicationWindow {
     }
 
     footer: Text {
-        text: "  Process count: " + CpuLimitManager.processCount
+        text: "  Process count: " + QCpuModel.processCount
     }
     
     Component.onCompleted: {
