@@ -7,11 +7,11 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Controls 1.4 as Old
-import CpuLimitManager 1.0
+import QCpuModel 1.0
 
 Old.TableView {
     id: root
-    model: CpuLimitManager.processesModel
+    model: QCpuModel
 
     Old.TableViewColumn {
         id: pidColumn
@@ -52,5 +52,9 @@ Old.TableView {
         let commandColumnWidth = root.width - pidColumn.width - userColumn.width - cpuUsageColumn.width - cpuLimitColumn.width
         commandColumnWidth = commandColumnWidth < 300 ? 300 : commandColumnWidth
         commandColumn.width = commandColumnWidth
+    }
+
+    onClicked: {
+        QCpuModel.selectProcess(row)
     }
 }

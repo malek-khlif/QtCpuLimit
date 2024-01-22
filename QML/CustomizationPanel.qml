@@ -6,120 +6,78 @@
 
 import QtQuick 2.15
 import QtQuick.Controls 2.15
-import CpuLimitManager 1.0
+import QCpuModel 1.0
 
- Item {
+ Column {
     id: root
 
     Row {
-        anchors.fill: root
         spacing: 5
 
-        //Search panel
-        Row {
-            spacing: 5
-            anchors.verticalCenter: parent.verticalCenter
-
-            Item {
-                width: 10
-                height: 10
-            }
-
-            Text {
-                text: qsTr("Search by command: ")
-                anchors.verticalCenter: parent.verticalCenter
-            }
-
-            TextField {
-                placeholderText: qsTr("Search by command")
-                width: root.width / 4
-            }
+        Text {
+            text: qsTr("PID: ")
         }
 
-        //Vertical line
-        Rectangle {
-            width: 1
-            height: root.height
-            color: "#e0e0e0"
-        }
-
-        //Selected process panel
-        Column {
-            spacing: 5
-            anchors.verticalCenter: parent.verticalCenter
-
-            Row {
-                spacing: 5
-
-                Text {
-                    text: qsTr("PID: ")
-                }
-
-                Text {
-                    text: "" //TODO
-                }
-            }
-
-            Row {
-                spacing: 5
-
-                Text {
-                    text: qsTr("Process: ")
-                }
-
-                Text {
-                    text: "" //TODO
-                }
-            }
-
-            Row {
-                spacing: 5
-
-                Text {
-                    text: qsTr("Min CPU %: ")
-                }
-
-                Text {
-                    text: "" //TODO
-                }
-            }
-
-            Row {
-                spacing: 5
-
-                Text {
-                    text: qsTr("Max CPU %: ")
-                }
-
-                Text {
-                    text: "" //TODO
-                }
-            }
-
-            Row {
-                spacing: 5
-
-                Text {
-                    text: qsTr("CPU usage %: ")
-                }
-
-                Text {
-                    text: "" //TODO
-                }
-            }
-
-            Row {
-                spacing: 5
-
-                Text {
-                    text: qsTr("CPU limit %: ")
-                }
-
-                Text {
-                    text: "" //TODO
-                }
-            }
+        Text {
+            text: QCpuModel.selectedProcessPid == "-1" ? "N/A" : QCpuModel.selectedProcessPid
         }
     }
 
+    Row {
+        spacing: 5
+
+        Text {
+            text: qsTr("Command: ")
+        }
+
+        Text {
+            text: QCpuModel.selectedProcessCommand
+        }
+    }
+
+    Row {
+        spacing: 5
+
+        Text {
+            text: qsTr("CPU limit %: ")
+        }
+
+        Text {
+            text: QCpuModel.selectedProcessCpuLimit == -1 ? "N/A" : QCpuModel.selectedProcessCpuLimit
+        }
+    }
+
+    Row {
+        spacing: 5
+
+        Text {
+            text: qsTr("Set CPU limit %: ")
+            anchors.verticalCenter: parent.verticalCenter
+        }
+
+        Slider {
+            id: limitSlider
+            from: 1
+            to: 100
+            stepSize: 1
+            anchors.verticalCenter: parent.verticalCenter
+        }
+
+        Text {
+            text: limitSlider.value + " %"
+            anchors.verticalCenter: parent.verticalCenter
+        }
+
+        Button {
+            text: "Set Limit"
+            anchors.verticalCenter: parent.verticalCenter
+            onClicked: QCpuModel.setProcessLimit(limitSlider.value)
+        }
+
+        Button {
+            text: "Reset Limit"
+            anchors.verticalCenter: parent.verticalCenter
+            onClicked: QCpuModel.removeProcessLimit()
+        }
+    }
  }

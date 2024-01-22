@@ -19,15 +19,14 @@ CONFIG += c++17
 QMAKE_CFLAGS += -std=c11
 
 HEADERS += \
-    CpuLimitManager.h \
-    CpuLimitModel.h \
-    CpuMonitor.h \
+    QCpuTypes.h \
+    QCpuModel.h \
+    QCpuMonitor.h
 
 SOURCES += \
-    CpuLimitModel.cpp \
     main.cpp \
-    CpuLimitManager.cpp \
-    CpuMonitor.cpp \
+    QCpuModel.cpp \
+    QCpuMonitor.cpp
 
 RESOURCES += \
     qml.qrc
