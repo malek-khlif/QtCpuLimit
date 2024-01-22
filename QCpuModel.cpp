@@ -251,17 +251,29 @@ void QCpuModel::updateProcessList(const QCpuProcessList& processList,
     });
 
     //update the CpuUsage and CpuLimit columns
-    for (int index = 0; index < m_processList.size(); ++index)
+    int index = 0;
+    std::for_each(m_processList.begin(),
+                  m_processList.end(),
+                  [this, &index, &processList](QCpuProcess & process)
     {
-        constexpr int cpuUsageColumn = 2;
-        constexpr int cpuLimitColumn = 3;
+        const auto it = std::find_if(processList.begin(),
+                                     processList.end(),
+                                     [&process](const QCpuProcess & p)
+        {
+            return p.pid == process.pid;
+        });
 
-        m_processList[index].cpuUsageInPercent = processList[index].cpuUsageInPercent;
-        m_processList[index].cpuLimitInPercent = processList[index].cpuLimitInPercent;
+        if (it != processList.end())
+        {
+            process.cpuUsageInPercent = it->cpuUsageInPercent;
+            process.cpuLimitInPercent = it->cpuLimitInPercent;
+        }
 
-        emit dataChanged(createIndex(index, cpuUsageColumn),
-                         createIndex(index, cpuLimitColumn), {CpuUsage, CpuLimit});
-    }
+        emit dataChanged(createIndex(index, 2),
+                         createIndex(index, 3), {CpuUsage, CpuLimit});
+
+        ++index;
+    });
 
     //emit the process count changed signal
     if (countChanged)
