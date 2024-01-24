@@ -141,12 +141,12 @@ QVariant QCpuModel::data(const QModelIndex& index, int role) const
             return m_processList[index.row()].user;
 
         case CpuUsage:
-            return QString::number(m_processList[index.row()].cpuUsageInPercent, 'f', 2);
+            return QString::number(m_processList[index.row()].cpuUsageInPercent * 100, 'f', 2);
 
         case CpuLimit:
         {
             const auto& cpuLimit = m_processList[index.row()].cpuLimitInPercent;
-            return cpuLimit.has_value() ? QString::number(cpuLimit.value()) : "N/A";
+            return cpuLimit.has_value() ? QString::number(cpuLimit.value() * 100, 'f', 2) : "N/A";
         }
 
         case Command:

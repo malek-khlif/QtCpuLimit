@@ -23,23 +23,24 @@ constexpr int c_timerRefreshProcessListIntervalInMs = std::chrono::milliseconds(
 /**
  * @brief c_timerCpuLimitIntervalInMs constant
  */
-constexpr int c_timerCpuLimitIntervalInMs = std::chrono::milliseconds(50ms).count();
+constexpr int c_timerCpuLimitIntervalInMs = std::chrono::milliseconds(25ms).count();
 
 /**
  * @brief QCpuProcess struct
  */
 struct QCpuProcess
 {
-    pid_t pid                       = 0;
-    double cpuUsageInPercent        = 0;
-    quint64 cpuTimeInTicks          = 0;
-    quint64 previousCpuTimeInTicks  = 0;
-    int sleepCountInCycle           = 0;
+    pid_t pid                          = 0;  // process id
+    double cpuUsageInPercent           = 0;  // [0.0..1.0 * (CPU count)]
+    quint64 cpuTimeInTicks             = 0;  // CPU time in ticks (jiffies)
+    quint64 previousCpuTimeInTicks     = 0;  // CPU time in ticks (jiffies) at previous refresh
+    quint64 lastMeasuredTimestampInMs  = 0;  // timestamp of last measurement in ms
+    int sleepCountInCycle              = 0;  // number of sleep cycles to limit CPU usage
 
-    std::optional<int> cpuLimitInPercent;
+    std::optional<double> cpuLimitInPercent; // CPU limit in percent (0.0..1.0)
 
-    QString command;
-    QString user;
+    QString command;                        // command name with arguments
+    QString user;                           // user name
 };
 
 /**
