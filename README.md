@@ -10,7 +10,8 @@ QtCpuLimit is a versatile tool designed to monitor and limit CPU usage on a per-
 - **Customizable Settings:** Adjust settings to fit your specific needs.
 - **Compatibility:** Works with a wide range of Qt-supported platforms.
 
-## Installation
+## Demo Video
+Demo Video: https://github.com/malek-khlif/QtCpuLimit/blob/main/demo.mp4
 
 ### Prerequisites
 - Qt 5.15 or newer
