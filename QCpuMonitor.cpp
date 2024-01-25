@@ -6,6 +6,16 @@
 
 #include "QCpuMonitor.h"
 
+# if defined(_SC_CLK_TCK)
+#  define HZ ((double)sysconf(_SC_CLK_TCK))
+# else
+#  ifndef CLK_TCK
+#    define HZ  100.0
+#  else
+#   define HZ ((double)CLK_TCK)
+#  endif
+# endif
+
 /**
  * @brief QCpuMonitor::create
  */
@@ -45,7 +55,9 @@ QCpuMonitor::~QCpuMonitor() noexcept
     const pid_t currentProcessId = getpid();
 
     //send a SIGCONT signal to all processes
-    std::for_each(m_processList.begin(), m_processList.end(), [currentProcessId](const QCpuProcess & process)
+    std::for_each(m_processList.constBegin(),
+                  m_processList.constEnd(),
+                  [currentProcessId](const QCpuProcess & process)
     {
         //send a SIGCONT signal except for the current process
         if (process.pid != currentProcessId)
@@ -72,6 +84,13 @@ void QCpuMonitor::setProcessLimit(pid_t pid, int cpuLimit)
         return;
     }
 
+    //check if the cpu limit is valid
+    if (cpuLimit < 0 || cpuLimit > 100)
+    {
+        qDebug() << "QCpuMonitor::setProcessLimit: invalid cpu limit - cpuLimit:" << cpuLimit;
+        return;
+    }
+
     //find the process
     auto processIt = std::find_if(m_processList.begin(), m_processList.end(), [pid](const QCpuProcess & process)
     {
@@ -89,7 +108,7 @@ void QCpuMonitor::setProcessLimit(pid_t pid, int cpuLimit)
     kill(processIt->pid, SIGCONT);
 
     //set the cpu limit
-    processIt->cpuLimitInPercent = cpuLimit;
+    processIt->cpuLimitInPercent = static_cast<double>(cpuLimit) / 100.0;
     processIt->sleepCountInCycle = 0;
 }
 
@@ -325,8 +344,8 @@ void QCpuMonitor::scanRunningProcesses() noexcept
                 }
 
                 //find the user
-                auto userIt = m_userMap.find(userId);
-                if (userIt != m_userMap.end())
+                auto userIt = m_userMap.constFind(userId);
+                if (userIt != m_userMap.constEnd())
                 {
                     process.user = userIt.value();
                 }
@@ -351,7 +370,7 @@ void QCpuMonitor::scanRunningProcesses() noexcept
     //remove all processes that are not running anymore
     std::remove_if(m_processList.begin(), m_processList.end(), [&runningProcesses, &processToRemove](const QCpuProcess & process)
     {
-        const bool toRemove = std::find(runningProcesses.begin(), runningProcesses.end(), process.pid) == runningProcesses.end();
+        const bool toRemove = std::find(runningProcesses.constBegin(), runningProcesses.constEnd(), process.pid) == runningProcesses.constEnd();
 
         if (toRemove)
         {
@@ -362,22 +381,23 @@ void QCpuMonitor::scanRunningProcesses() noexcept
     });
 
     //add new processes
-    std::for_each(runningProcesses.begin(), runningProcesses.end(), [this, readCommandAndUser, &processToAdd](pid_t pid)
+    std::for_each(runningProcesses.constBegin(), runningProcesses.constEnd(), [this, readCommandAndUser, &processToAdd](pid_t pid)
     {
         //check if the process is already in the list
-        auto it = std::find_if(m_processList.begin(), m_processList.end(), [pid](const QCpuProcess & process)
+        auto it = std::find_if(m_processList.constBegin(), m_processList.constEnd(), [pid](const QCpuProcess & process)
         {
             return process.pid == pid;
         });
 
-        if (it != m_processList.end())
+        if (it != m_processList.constEnd()) //process already in the list
         {
             return;
         }
 
         //create the process
         QCpuProcess process;
-        process.pid = pid;
+        process.pid                       = pid;
+        process.lastMeasuredTimestampInMs = QDateTime::currentMSecsSinceEpoch();
 
         //read the command and the user
         readCommandAndUser(process);
@@ -394,68 +414,20 @@ void QCpuMonitor::scanRunningProcesses() noexcept
 }
 
 /**
- * @brief QCpuMonitor::scanSystemCpuTime
+ * @brief QCpuMonitor::scanProcessCpuTime
  */
-void QCpuMonitor::scanSystemCpuTime() noexcept
+void QCpuMonitor::scanProcessCpuTime(quint64 now, QCpuProcess& process) noexcept
 {
-    //create the stat file object
-    const QString statFilePath = "/proc/stat";
+    //calculate the elapsed time since the last measurement
+    //update each 20ms
+    constexpr quint64 refreshIntervalInMs = 20;
+    quint64 elapsed = now - process.lastMeasuredTimestampInMs;
 
-    //create the stat file object
-    QFile statFile(statFilePath);
-
-    //try to open the stat file
-    if (!statFile.open(QIODevice::ReadOnly))
+    if (elapsed < refreshIntervalInMs)
     {
-        qDebug() << "QCpuMonitor::scanSystemCpuTime: cannot open the stat file";
         return;
     }
 
-    //create the text stream
-    QTextStream textStream(&statFile);
-
-    //read the first line
-    const QString line = textStream.readLine();
-
-    //scan the line
-    quint64 usertime   = 0x00;
-    quint64 nicetime   = 0x00;
-    quint64 systemtime = 0x00;
-    quint64 idletime   = 0x00;
-    quint64 ioWait     = 0x00;
-    quint64 irq        = 0x00;
-    quint64 softIrq    = 0x00;
-    quint64 steal      = 0x00;
-    quint64 guest      = 0x00;
-    quint64 guestnice  = 0x00;
-
-    sscanf(line.toStdString().c_str(),
-           "cpu  %16llu %16llu %16llu %16llu %16llu %16llu %16llu %16llu %16llu %16llu",
-           &usertime, &nicetime, &systemtime, &idletime, &ioWait, &irq, &softIrq, &steal, &guest, &guestnice);
-
-    //the guest time is already accounted in usertime so we need to avoid it
-    usertime -= guest;
-    nicetime -= guestnice;
-
-    //calculate the cpu time
-    const quint64 idlealltime = idletime + ioWait;
-    const quint64 systemalltime = systemtime + irq + softIrq;
-    const quint64 virtalltime = guest + guestnice;
-    const quint64 totaltime = usertime + nicetime + systemalltime + idlealltime + steal + virtalltime;
-
-    //update the system cpu time
-    m_previousSystemCpuTimeInTicks = m_systemCpuTimeInTicks;
-    m_systemCpuTimeInTicks = totaltime;
-
-    //close the stat file
-    statFile.close();
-}
-
-/**
- * @brief QCpuMonitor::scanProcessCpuTime
- */
-void QCpuMonitor::scanProcessCpuTime(QCpuProcess& process) noexcept
-{
     //create the stat file path
     const QString statFilePath = QString("/proc/%1/stat").arg(process.pid);
 
@@ -555,11 +527,19 @@ void QCpuMonitor::scanProcessCpuTime(QCpuProcess& process) noexcept
     const quint64 stime = strtoull(location, &location, 10);
     location += 1;
 
-    //calculate
+    //update the CPU time
     process.previousCpuTimeInTicks = process.cpuTimeInTicks;
-    process.cpuTimeInTicks = utime + stime;
-    process.cpuUsageInPercent = double(process.cpuTimeInTicks - process.previousCpuTimeInTicks) / double(m_systemCpuTimeInTicks - m_previousSystemCpuTimeInTicks) * 100.0;
-    process.cpuUsageInPercent *= m_nproc;
+    process.cpuTimeInTicks = (utime + stime) * 1000 / HZ;
+
+    //calculate the sample
+    const double sample = 1.0 * (process.cpuTimeInTicks - process.previousCpuTimeInTicks) / elapsed;
+
+    //calculate CPU usage
+    constexpr double alpha = 0.08;
+    process.cpuUsageInPercent = (1.0 - alpha) * process.cpuUsageInPercent + (alpha * sample);
+
+    //update the timestamp
+    process.lastMeasuredTimestampInMs = now;
 }
 
 /**
@@ -573,14 +553,14 @@ void QCpuMonitor::timeoutControlCpuLimit() noexcept
         m_timerLimitCpuPtr->start();
     });
 
-    //scan system cpu time
-    scanSystemCpuTime();
+    //get the current timestamp
+    const quint64 now = QDateTime::currentMSecsSinceEpoch();
 
     //loop through the processes
-    std::for_each(m_processList.begin(), m_processList.end(), [this](QCpuProcess & process)
+    std::for_each(m_processList.begin(), m_processList.end(), [this, now](QCpuProcess & process)
     {
         //scan the cpu time for each process
-        scanProcessCpuTime(process);
+        scanProcessCpuTime(now, process);
 
         //check if the process has a cpu limit
         if (!process.cpuLimitInPercent.has_value())
@@ -606,14 +586,15 @@ void QCpuMonitor::timeoutControlCpuLimit() noexcept
         }
 
         //do we exceed the cpu limit?
-        if (process.cpuLimitInPercent.value() == 0 ||
-            static_cast<int>(process.cpuUsageInPercent) <= process.cpuLimitInPercent.value())
+        if (process.cpuLimitInPercent.value() <= 0.001 ||
+                process.cpuUsageInPercent <= process.cpuLimitInPercent.value())
         {
             return;
         }
 
         //count the sleep count
-        process.sleepCountInCycle = (static_cast<int>(process.cpuUsageInPercent) / process.cpuLimitInPercent.value()) + 1;
+        process.sleepCountInCycle = (process.cpuUsageInPercent - process.cpuLimitInPercent.value()) / process.cpuLimitInPercent.value();
+        process.sleepCountInCycle = std::max(process.sleepCountInCycle, 1);
 
         //send a SIGSTOP signal to the process
         kill(process.pid, SIGSTOP);
@@ -625,12 +606,9 @@ void QCpuMonitor::timeoutControlCpuLimit() noexcept
  */
 void QCpuMonitor::timeoutCpuMonitor() noexcept
 {
-    //start the timer again once we go out of this method
-    auto timerGuard = qScopeGuard([this]()
-    {
-        m_timerMonitorCpuPtr->start();
-    });
-
     //scan running processes
     scanRunningProcesses();
+
+    //start the timer again
+    m_timerMonitorCpuPtr->start();
 }

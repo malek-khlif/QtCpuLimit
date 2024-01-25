@@ -15,10 +15,14 @@
 #include <QFile>
 #include <QTextStream>
 #include <QScopeGuard>
+#include <QDateTime>
 #include <QDirIterator>
 #include <exception>
 #include <stdexcept>
 #include <signal.h>
+#include <unistd.h>
+#include <limits.h>
+#include <dirent.h>
 #include <sys/sysinfo.h>
 #include "QCpuTypes.h"
 
@@ -53,14 +57,9 @@ private:
     void start() noexcept;
     void scanUsers() noexcept;
     void scanRunningProcesses() noexcept;
-    void scanSystemCpuTime() noexcept;
-    void scanProcessCpuTime(QCpuProcess& process) noexcept;
+    void scanProcessCpuTime(quint64 now, QCpuProcess& process) noexcept;
     void timeoutControlCpuLimit() noexcept;
     void timeoutCpuMonitor() noexcept;
-
-    const int m_nproc { get_nprocs() == 0 ? 1 : get_nprocs() }; 
-    quint64 m_previousSystemCpuTimeInTicks  { 0 };
-    quint64 m_systemCpuTimeInTicks          { 0 };
 
     QCpuProcessList m_processList;
     QUserMap m_userMap;
